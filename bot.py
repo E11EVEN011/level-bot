@@ -22,7 +22,7 @@ def keep_alive():
 
 # ───── 2. إعدادات البوت ─────
 TOKEN = os.getenv("TOKEN")
-LEVEL_20_ROOM_ID = 1459144630720528437 # ID الروم الذي حددته
+LEVEL_20_ROOM_ID = 1459144630720528437 # ID الروم الخاص بك
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -44,7 +44,7 @@ def is_higher_mgmt():
         return role is not None or ctx.author.guild_permissions.administrator
     return commands.check(predicate)
 
-# ───── 5. واجهة الرتب الخاصة ─────
+# ───── 5. واجهة الرتب الخاصة (لفل 20) ─────
 class RoleModal(discord.ui.Modal, title="تخصيص رتبتك"):
     name = discord.ui.TextInput(label="اسم الرتبة")
     color = discord.ui.TextInput(label="اللون (Hex)", placeholder="#ff0000")
@@ -100,13 +100,13 @@ async def on_message(message):
     if new_level > level:
         cursor.execute("UPDATE users SET level = ? WHERE user_id = ?", (new_level, message.author.id))
         db.commit()
-        if message.channel.id == LEVEL_20_ROOM_ID or message.channel.permissions_for(message.guild.me).send_messages:
-            await message.channel.send(f"🎊 مبروك {message.author.mention}! وصلت للمستوى **{new_level}**")
+        await message.channel.send(f"🎊 مبروك {message.author.mention}! وصلت للمستوى **{new_level}**")
     
     db.commit()
     await bot.process_commands(message)
 
-# ───── 7. الأوامر الإدارية العليا ─────
+# ───── 7. الأوامر الإدارية (〢Higher Managment) ─────
+
 @bot.command()
 @is_higher_mgmt()
 async def addxp(ctx, member: discord.Member, amount: int):
@@ -116,23 +116,33 @@ async def addxp(ctx, member: discord.Member, amount: int):
     new_lvl = int(0.1 * math.sqrt(new_xp))
     cursor.execute("UPDATE users SET level = ? WHERE user_id = ?", (new_lvl, member.id))
     db.commit()
-    await ctx.send(f"✅ تم إضافة {amount} XP لـ {member.mention}. لفل الحالي: {new_lvl}")
+    await ctx.send(f"✅ تم إضافة `{amount}` XP لـ {member.mention}. لفل الحالي: `{new_lvl}`")
+
+@bot.command()
+@is_higher_mgmt()
+async def setlevel(ctx, member: discord.Member, level: int):
+    new_xp = int((level / 0.1)**2)
+    cursor.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (member.id,))
+    cursor.execute("UPDATE users SET xp = ?, level = ? WHERE user_id = ?", (new_xp, level, member.id))
+    db.commit()
+    await ctx.send(f"✅ تم تعيين مستوى {member.mention} إلى لفل **{level}** بنجاح.")
 
 @bot.command()
 @is_higher_mgmt()
 async def resetlevel(ctx, member: discord.Member):
     cursor.execute("UPDATE users SET xp = 0, level = 0 WHERE user_id = ?", (member.id,))
     db.commit()
-    await ctx.send(f"🧹 تم تصفير بيانات {member.mention}")
+    await ctx.send(f"🧹 تم تصفير بيانات {member.mention} بالكامل.")
 
 # ───── 8. الأوامر العامة ─────
+
 @bot.command()
 async def rank(ctx, member: discord.Member = None):
     member = member or ctx.author
     cursor.execute("SELECT xp, level FROM users WHERE user_id = ?", (member.id,))
     res = cursor.fetchone()
     if res: await ctx.send(f"📊 **{member.display_name}** | لفل: `{res[1]}` | XP: `{res[0]}`")
-    else: await ctx.send("❌ لا توجد بيانات.")
+    else: await ctx.send("❌ لا توجد بيانات لهذا العضو.")
 
 @bot.command(aliases=['lb'])
 async def leaderboard(ctx):
@@ -150,7 +160,7 @@ async def leaderboard(ctx):
 async def setup_roles(ctx):
     if ctx.channel.id != LEVEL_20_ROOM_ID:
         return await ctx.send(f"❌ هذا الأمر يعمل فقط في الروم المخصص: <#{LEVEL_20_ROOM_ID}>")
-    embed = discord.Embed(title="✨ مركز رتب لفل 20", description="اضغط الزر لصنع رتبتك الخاصة!", color=discord.Color.blue())
+    embed = discord.Embed(title="✨ مركز رتب لفل 20", description="حصرياً للمتفاعلين، اضغط الزر بالأسفل لصنع رتبتك الخاصة!", color=discord.Color.blue())
     await ctx.send(embed=embed, view=LevelView())
 
 # ───── 9. التشغيل ─────
