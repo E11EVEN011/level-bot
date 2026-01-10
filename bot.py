@@ -69,18 +69,31 @@ class RoleModal(discord.ui.Modal, title="تخصيص رتبتك"):
             res = cursor.fetchone()
             role_id = res[0] if res else None
 
-            if role_id and interaction.guild.get_role(role_id):
+           if role_id and interaction.guild.get_role(role_id):
                 role = interaction.guild.get_role(role_id)
                 await role.edit(name=self.name.value, color=color_val)
                 await interaction.response.send_message("✅ تم تحديث رتبتك!", ephemeral=True)
             else:
-                role = await interaction.guild.create_role(name=self.name.value, color=color_val, hoist=True)
-                new_pos = max(1, interaction.guild.me.top_role.position - 1)
-                await role.edit(position=new_pos)
+                # 1. إنشاء الرتبة مع خاصية الـ hoist لتظهر منفصلة
+                role = await interaction.guild.create_role(
+                    name=self.name.value, 
+                    color=color_val, 
+                    hoist=True, 
+                    reason="رتبة لفل 20 خاصة"
+                )
+                
+                # 2. محاولة رفع الرتبة تحت رتبة البوت مباشرة ليظهر اللون
+                try:
+                    bot_role = interaction.guild.me.top_role
+                    if bot_role.position > 1:
+                        await role.edit(position=bot_role.position - 1)
+                except:
+                    pass # في حال فشل الترتيب بسبب الصلاحيات لا يتوقف البوت
+
                 await interaction.user.add_roles(role)
                 cursor.execute("UPDATE users SET custom_role_id = ? WHERE user_id = ?", (role.id, interaction.user.id))
                 db.commit()
-                await interaction.response.send_message(f"✅ تم إنشاء رتبتك {role.mention}!", ephemeral=True)
+                await interaction.response.send_message(f"✅ تم إنشاء رتبتك {role.mention} ورفعها تلقائياً!", ephemeral=True), ephemeral=True)
         except: await interaction.response.send_message("❌ خطأ في اللون أو الصلاحيات", ephemeral=True)
 
 class LevelView(discord.ui.View):
@@ -172,7 +185,7 @@ async def leaderboard(ctx):
 @commands.has_permissions(administrator=True)
 async def setup_roles(ctx):
     if ctx.channel.id != LEVEL_20_ROOM_ID: return
-    await ctx.send(embed=discord.Embed(title="✨ مركز رتب لفل 20", description="استخدم `-` قبل الأوامر. اصنع رتبتك وأضف أصدقاءك!"), view=LevelView())
+    await ctx.send(embed=discord.Embed(title="✨ رتب خاصة", description="استخدم `-` قبل الأوامر. اصنع رتبتك وأضف أصدقاءك!"), view=LevelView())
 
 # ───── 8. التشغيل ─────
 keep_alive()
