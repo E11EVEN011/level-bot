@@ -6,10 +6,10 @@ import os
 from flask import Flask
 from threading import Thread
 
-# ───── 1. السيرفر الوهمي لخداع Render ─────
+# ───── 1. السيرفر الوهمي ─────
 app = Flask('')
 @app.route('/')
-def home(): return "Bot is Alive!"
+def home(): return "Bot is Online with Prefix (-)"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
@@ -23,9 +23,9 @@ def keep_alive():
 TOKEN = os.getenv("TOKEN")
 LEVEL_20_ROOM_ID = 1459144630720528437 
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+# تم تغيير البريفكس هنا إلى -
+bot = commands.Bot(command_prefix="-", intents=intents)
 
-# قاعدة البيانات
 db = sqlite3.connect('levels.db')
 cursor = db.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -43,8 +43,7 @@ def is_higher_mgmt():
         return role is not None or ctx.author.guild_permissions.administrator
     return commands.check(predicate)
 
-# ───── 4. واجهة الرتب الخاصة (Modal & View) ─────
-
+# ───── 4. واجهة الرتب الخاصة ─────
 class FriendModal(discord.ui.Modal, title="إضافة صديق لرتبتك"):
     friend_id = discord.ui.TextInput(label="ID الصديق")
     async def on_submit(self, interaction: discord.Interaction):
@@ -76,7 +75,6 @@ class RoleModal(discord.ui.Modal, title="تخصيص رتبتك"):
                 await interaction.response.send_message("✅ تم تحديث رتبتك!", ephemeral=True)
             else:
                 role = await interaction.guild.create_role(name=self.name.value, color=color_val, hoist=True)
-                # رفع الرتبة تحت البوت مباشرة
                 new_pos = max(1, interaction.guild.me.top_role.position - 1)
                 await role.edit(position=new_pos)
                 await interaction.user.add_roles(role)
@@ -105,7 +103,7 @@ class LevelView(discord.ui.View):
 @bot.event
 async def on_ready():
     bot.add_view(LevelView())
-    print(f"✅ البوت يعمل الآن باسم {bot.user}")
+    print(f"✅ البوت يعمل بالبريفكس (-) باسم {bot.user}")
 
 @bot.event
 async def on_message(message):
@@ -118,11 +116,10 @@ async def on_message(message):
     if new_lvl > level:
         cursor.execute("UPDATE users SET level = ? WHERE user_id = ?", (new_lvl, message.author.id))
         db.commit()
-        await message.channel.send(f"🎊 {message.author.mention} وصل لفل {new_lvl}!")
     db.commit()
     await bot.process_commands(message)
 
-# ───── 6. أوامر الإدارة العليا (〢Higher Managment) ─────
+# ───── 6. أوامر الإدارة العليا (-) ─────
 
 @bot.command()
 @is_higher_mgmt()
@@ -151,7 +148,7 @@ async def resetlevel(ctx, member: discord.Member):
     db.commit()
     await ctx.send(f"🧹 تم تصفير بيانات {member.mention}")
 
-# ───── 7. الأوامر العامة ─────
+# ───── 7. الأوامر العامة (-) ─────
 
 @bot.command()
 async def rank(ctx, member: discord.Member = None):
@@ -175,7 +172,7 @@ async def leaderboard(ctx):
 @commands.has_permissions(administrator=True)
 async def setup_roles(ctx):
     if ctx.channel.id != LEVEL_20_ROOM_ID: return
-    await ctx.send(embed=discord.Embed(title="✨ مركز رتب لفل 20", description="اصنع رتبتك وأضف أصدقاءك!"), view=LevelView())
+    await ctx.send(embed=discord.Embed(title="✨ مركز رتب لفل 20", description="استخدم `-` قبل الأوامر. اصنع رتبتك وأضف أصدقاءك!"), view=LevelView())
 
 # ───── 8. التشغيل ─────
 keep_alive()
